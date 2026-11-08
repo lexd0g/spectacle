@@ -15,6 +15,10 @@ AnnotationViewport {
     document: SpectacleCore.annotationDocument
     viewportRect: Qt.rect(0, 0, width, height)
 
+    Component.onCompleted: {
+        SpectacleCore.setupSmartEraser(root)
+    }
+
     onPressedChanged: if (pressed) {
         if (textTool.shouldShow) {
             textTool.forceActiveFocus(Qt.MouseFocusReason);

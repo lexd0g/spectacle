@@ -17,7 +17,7 @@ Row {
     readonly property SelectedItemWrapper selectedItem: document.selectedItem
 
     readonly property bool useSelectionOptions: tool.type === AnnotationTool.SelectTool || (tool.type === AnnotationTool.TextTool && selectedItem.options & AnnotationTool.TextOption)
-    readonly property int options: useSelectionOptions ? selectedItem.options : tool.options
+    readonly property int options: useSelectionOptions ? selectedItem.options : (SpectacleCore.smartEraserActive ? AnnotationTool.NoOptions : tool.options)
     property int displayMode: QQC.AbstractButton.TextBesideIcon
     property int buttonFocusPolicy: Qt.StrongFocus
     readonly property bool mirrored: effectiveLayoutDirection === Qt.RightToLeft

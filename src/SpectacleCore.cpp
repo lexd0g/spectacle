@@ -1,4 +1,4 @@
-﻿/*
+/*
  *  SPDX-FileCopyrightText: 2019 David Redondo <kde@david-redondo.de>
  *  SPDX-FileCopyrightText: 2015 Boudhayan Gupta <bgupta@kde.org>
  *  SPDX-FileCopyrightText: 2025 Jhair Paris <dev@jhairparis.com>
@@ -62,11 +62,13 @@
 #include <QQmlEngine>
 #include <QScopedPointer>
 #include <QScreen>
+#include <QMouseEvent>
 #include <QSystemTrayIcon>
 #include <QTemporaryFile>
 #include <QTextStream>
 #include <QTimer>
 #include <QtMath>
+#include <cmath>
 #include <qobjectdefs.h>
 
 using namespace Qt::StringLiterals;
@@ -75,6 +77,51 @@ SpectacleCore *SpectacleCore::s_self = nullptr;
 static std::unique_ptr<KStatusNotifierItem> s_systemTrayIcon;
 
 static QList<KNotification *> notifications;
+
+namespace {
+
+class SmartEraserFilter : public QObject
+{
+public:
+    explicit SmartEraserFilter(SpectacleCore *core)
+        : QObject(core)
+        , m_core(core)
+    {
+    }
+
+protected:
+    bool eventFilter(QObject *watched, QEvent *event) override
+    {
+        if (event->type() == QEvent::MouseButtonPress) {
+            if (m_core && m_core->smartEraserActive()) {
+                auto *mouseEvent = static_cast<QMouseEvent *>(event);
+                if (mouseEvent->button() == Qt::LeftButton) {
+                    auto *item = qobject_cast<QQuickItem *>(watched);
+                    if (item && m_core->annotationDocument()) {
+                        auto *doc = m_core->annotationDocument();
+                        auto dpr = item->window() ? item->window()->devicePixelRatio() : 1.0;
+                        auto pressPos = Geometry::dprRound(mouseEvent->position(), dpr);
+                        auto transform = doc->inputTransform();
+                        auto offset = item->property("viewportRect").toRectF().topLeft();
+                        transform.translate(offset.x(), offset.y());
+                        QPointF docPressPos = transform.map(pressPos);
+
+                        QColor sampledColor = m_core->pixelColor(docPressPos);
+                        sampledColor.setAlpha(255);
+
+                        m_core->prepareSmartEraserDraw(sampledColor);
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+private:
+    SpectacleCore *m_core = nullptr;
+};
+
+} // namespace
 
 SpectacleCore::SpectacleCore(QObject *parent)
     : QObject(parent)
@@ -132,6 +179,12 @@ SpectacleCore::SpectacleCore(QObject *parent)
     m_videoPlatform = loadVideoPlatform();
     auto imagePlatform = m_imagePlatform.get();
     m_annotationDocument = std::make_unique<AnnotationDocument>();
+    m_smartEraserFilter = std::make_unique<SmartEraserFilter>(this);
+    connect(m_annotationDocument->tool(), &AnnotationTool::typeChanged, this, [this] {
+        if (m_smartEraserActive && m_annotationDocument->tool()->type() != AnnotationTool::RectangleTool) {
+            setSmartEraserActive(false);
+        }
+    });
 
     // essential connections
     connect(SelectionEditor::instance(), &SelectionEditor::accepted, this, [this](const QRectF &rect, const ExportManager::Actions &actions) {
@@ -818,7 +871,103 @@ bool SpectacleCore::performOcrExtraction(const QString &languageCode)
 
 SpectacleCore::~SpectacleCore() noexcept
 {
+    if (m_savedRectangleSettings.valid && m_annotationDocument && m_annotationDocument->tool()) {
+        auto *tool = m_annotationDocument->tool();
+        tool->setStrokeWidth(m_savedRectangleSettings.strokeWidth);
+        tool->setStrokeColor(m_savedRectangleSettings.strokeColor);
+        tool->setFillColor(m_savedRectangleSettings.fillColor);
+        tool->setShadow(m_savedRectangleSettings.shadow);
+    }
     s_self = nullptr;
+}
+
+bool SpectacleCore::smartEraserActive() const
+{
+    return m_smartEraserActive;
+}
+
+void SpectacleCore::setSmartEraserActive(bool active)
+{
+    if (m_smartEraserActive == active) {
+        return;
+    }
+    m_smartEraserActive = active;
+
+    if (m_smartEraserActive) {
+        if (m_annotationDocument && m_annotationDocument->tool()) {
+            auto *tool = m_annotationDocument->tool();
+            if (!m_savedRectangleSettings.valid) {
+                m_savedRectangleSettings.strokeWidth = tool->strokeWidth();
+                m_savedRectangleSettings.strokeColor = tool->strokeColor();
+                m_savedRectangleSettings.fillColor = tool->fillColor();
+                m_savedRectangleSettings.shadow = tool->hasShadow();
+                m_savedRectangleSettings.valid = true;
+            }
+            tool->setType(AnnotationTool::RectangleTool);
+        }
+    } else if (m_savedRectangleSettings.valid) {
+        if (m_annotationDocument && m_annotationDocument->tool()) {
+            auto *tool = m_annotationDocument->tool();
+            tool->setStrokeWidth(m_savedRectangleSettings.strokeWidth);
+            tool->setStrokeColor(m_savedRectangleSettings.strokeColor);
+            tool->setFillColor(m_savedRectangleSettings.fillColor);
+            tool->setShadow(m_savedRectangleSettings.shadow);
+        }
+        m_savedRectangleSettings.valid = false;
+    }
+
+    Q_EMIT smartEraserActiveChanged();
+}
+
+void SpectacleCore::setupSmartEraser(QQuickItem *viewport)
+{
+    if (!viewport || !m_smartEraserFilter) {
+        return;
+    }
+    viewport->removeEventFilter(m_smartEraserFilter.get());
+    viewport->installEventFilter(m_smartEraserFilter.get());
+}
+
+QColor SpectacleCore::pixelColor(const QPointF &point) const
+{
+    if (!m_annotationDocument) {
+        return Qt::transparent;
+    }
+    const QImage image = m_annotationDocument->renderToImage();
+    if (image.isNull()) {
+        return Qt::transparent;
+    }
+    const auto canvasRect = m_annotationDocument->canvasRect();
+    const auto dpr = m_annotationDocument->imageDpr();
+    const QPointF local = point - canvasRect.topLeft();
+    const int x = std::clamp(static_cast<int>(std::floor(local.x() * dpr)), 0, image.width() - 1);
+    const int y = std::clamp(static_cast<int>(std::floor(local.y() * dpr)), 0, image.height() - 1);
+    return image.pixelColor(x, y);
+}
+
+void SpectacleCore::prepareSmartEraserDraw(const QColor &color)
+{
+    if (!m_annotationDocument) {
+        return;
+    }
+    auto *tool = m_annotationDocument->tool();
+    if (!tool) {
+        return;
+    }
+
+    if (!m_savedRectangleSettings.valid) {
+        m_savedRectangleSettings.strokeWidth = tool->strokeWidth();
+        m_savedRectangleSettings.strokeColor = tool->strokeColor();
+        m_savedRectangleSettings.fillColor = tool->fillColor();
+        m_savedRectangleSettings.shadow = tool->hasShadow();
+        m_savedRectangleSettings.valid = true;
+    }
+
+    tool->setType(AnnotationTool::RectangleTool);
+    tool->setStrokeWidth(0);
+    tool->setStrokeColor(Qt::transparent);
+    tool->setFillColor(color);
+    tool->setShadow(false);
 }
 
 SpectacleCore *SpectacleCore::instance()

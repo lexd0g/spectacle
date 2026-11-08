@@ -44,6 +44,7 @@ class SpectacleCore : public QObject
     Q_PROPERTY(AnnotationDocument *annotationDocument READ annotationDocument CONSTANT FINAL)
     Q_PROPERTY(bool ocrAvailable READ ocrAvailable NOTIFY ocrStatusChanged FINAL)
     Q_PROPERTY(OcrManager::OcrStatus ocrStatus READ ocrStatus NOTIFY ocrStatusChanged FINAL)
+    Q_PROPERTY(bool smartEraserActive READ smartEraserActive WRITE setSmartEraserActive NOTIFY smartEraserActiveChanged FINAL)
 
 public:
     enum class StartMode {
@@ -86,6 +87,12 @@ public:
     void initGuiNoScreenshot();
 
     void syncExportImage();
+
+    bool smartEraserActive() const;
+    void setSmartEraserActive(bool active);
+    Q_INVOKABLE void setupSmartEraser(QQuickItem *viewport);
+    Q_INVOKABLE QColor pixelColor(const QPointF &point) const;
+    void prepareSmartEraserDraw(const QColor &color);
 
     Q_INVOKABLE void startRecording(VideoPlatform::RecordingMode mode, bool withPointer = Settings::videoIncludePointer());
     Q_INVOKABLE void finishRecording();
@@ -134,6 +141,7 @@ Q_SIGNALS:
     void currentVideoChanged(const QUrl &currentVideo);
     void recordedTimeChanged();
     void ocrStatusChanged();
+    void smartEraserActiveChanged();
 
 private:
     explicit SpectacleCore(QObject *parent = nullptr);
@@ -195,6 +203,17 @@ private:
     VideoPlatform::RecordingMode m_lastRecordingMode = VideoPlatform::NoRecordingModes;
     bool m_videoMode = false;
     QUrl m_currentVideo;
+
+    struct SavedToolSettings {
+        int strokeWidth = 0;
+        QColor strokeColor;
+        QColor fillColor;
+        bool shadow = false;
+        bool valid = false;
+    };
+    SavedToolSettings m_savedRectangleSettings;
+    bool m_smartEraserActive = false;
+    std::unique_ptr<QObject> m_smartEraserFilter;
 
     static inline QQmlEngine *s_qmlEngine = nullptr;
 };

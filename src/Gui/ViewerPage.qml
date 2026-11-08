@@ -165,9 +165,10 @@ EmptyPage {
                     Layout.fillWidth: true
                     active: opacity > 0
                     visible: true
-                    state: if (SpectacleCore.annotationDocument.tool.options !== AnnotationTool.NoOptions
-                              || (SpectacleCore.annotationDocument.tool.type === AnnotationTool.SelectTool
-                                 && SpectacleCore.annotationDocument.selectedItem.options !== AnnotationTool.NoOptions)
+                    state: if (!SpectacleCore.smartEraserActive
+                              && (SpectacleCore.annotationDocument.tool.options !== AnnotationTool.NoOptions
+                                 || (SpectacleCore.annotationDocument.tool.type === AnnotationTool.SelectTool
+                                    && SpectacleCore.annotationDocument.selectedItem.options !== AnnotationTool.NoOptions))
                     ) {
                         return "active"
                     } else {

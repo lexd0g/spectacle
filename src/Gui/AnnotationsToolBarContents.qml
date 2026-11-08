@@ -171,8 +171,11 @@ ButtonGrid {
         extraHelp: i18nc("@info:tooltip",
             "Shift: Snap to diagonal movements\nControl: Resize from center")
         icon.name: "draw-rectangle"
-        checked: root.toolType === AnnotationTool.RectangleTool
-        onClicked: root.tool.type = AnnotationTool.RectangleTool
+        checked: !SpectacleCore.smartEraserActive && root.toolType === AnnotationTool.RectangleTool
+        onClicked: {
+            SpectacleCore.smartEraserActive = false
+            root.tool.type = AnnotationTool.RectangleTool
+        }
     }
     ToolButton {
         QQC.ButtonGroup.group: toolGroup
@@ -197,6 +200,18 @@ ButtonGrid {
         icon.name: "blur"
         checked: root.toolType === AnnotationTool.BlurTool
         onClicked: root.tool.type = AnnotationTool.BlurTool
+    }
+    ToolButton {
+        id: smartEraserButton
+        QQC.ButtonGroup.group: toolGroup
+        text: i18nc("@action:intoolbar smart eraser tool", "Smart Eraser")
+        extraHelp: rectangleButton.extraHelp
+        icon.name: "draw-eraser"
+        checked: SpectacleCore.smartEraserActive && root.toolType === AnnotationTool.RectangleTool
+        onClicked: {
+            SpectacleCore.smartEraserActive = true
+            root.tool.type = AnnotationTool.RectangleTool
+        }
     }
     ToolButton {
         QQC.ButtonGroup.group: toolGroup

@@ -844,9 +844,10 @@ MouseArea {
                         && !SelectionEditor.selection.empty
                         ? -otbLoader.height + borderBg.height
                         : otbLoader.height - borderBg.height
-                    state: if (root.document?.tool.options !== AnnotationTool.NoOptions
-                                || (root.document?.tool.type === AnnotationTool.SelectTool
-                                    && root.document?.selectedItem.options !== AnnotationTool.NoOptions)
+                    state: if (!SpectacleCore.smartEraserActive
+                                && (root.document?.tool.options !== AnnotationTool.NoOptions
+                                    || (root.document?.tool.type === AnnotationTool.SelectTool
+                                        && root.document?.selectedItem.options !== AnnotationTool.NoOptions))
                     ) {
                         return "active"
                     } else {
