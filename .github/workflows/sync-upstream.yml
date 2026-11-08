@@ -1,0 +1,105 @@
+name: Weekly Upstream Sync & Build
+
+on:
+  schedule:
+    # Runs weekly every Monday at 04:00 UTC
+    - cron: '0 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  sync-and-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/smart-eraser
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Setup Remotes
+        run: |
+          git remote add upstream https://github.com/KDE/spectacle.git || git remote set-url upstream https://github.com/KDE/spectacle.git
+          git fetch upstream master
+          git fetch origin master:master || true
+
+      - name: Sync master branch with upstream
+        run: |
+          git checkout master
+          git merge --ff-only upstream/master
+          git push origin master
+          git checkout feature/smart-eraser
+
+      - name: Check for upstream changes
+        id: check_upstream
+        run: |
+          COMMITS_BEHIND=$(git rev-list --count HEAD..upstream/master)
+          echo "Commits behind upstream/master: $COMMITS_BEHIND"
+          echo "behind=$COMMITS_BEHIND" >> "$GITHUB_OUTPUT"
+
+      - name: Merge upstream into feature/smart-eraser
+        if: steps.check_upstream.outputs.behind != '0'
+        id: merge_upstream
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Merging upstream/master into feature/smart-eraser..."
+          if git merge upstream/master -m "Automated upstream sync: merge KDE/spectacle master"; then
+            echo "Merge succeeded cleanly without conflicts."
+            git push origin feature/smart-eraser
+            echo "merge_status=success" >> "$GITHUB_OUTPUT"
+          else
+            echo "Merge conflict detected!"
+            CONFLICTS=$(git diff --name-only --diff-filter=U)
+            git merge --abort
+            
+            # Check if an open conflict issue already exists
+            EXISTING_ISSUE=$(gh issue list --repo "${{ github.repository }}" --search "Automated upstream sync conflict" --state open --json number --jq '.[0].number')
+            
+            ISSUE_BODY="The scheduled upstream sync encountered merge conflicts with recent commits from KDE/spectacle master.
+
+### Conflicted Files:
+\`\`\`
+$CONFLICTS
+\`\`\`
+
+### Resolution Steps:
+1. Fetch latest changes: \`git fetch upstream && git checkout feature/smart-eraser\`
+2. Merge upstream: \`git merge upstream/master\`
+3. Resolve conflicts in the files listed above
+4. Push to origin: \`git push origin feature/smart-eraser\`
+
+Once pushed, the automated build workflow will re-verify the build and update the release."
+
+            if [ -z "$EXISTING_ISSUE" ]; then
+              gh issue create \
+                --repo "${{ github.repository }}" \
+                --title "⚠️ Automated upstream sync conflict" \
+                --body "$ISSUE_BODY"
+            else
+              gh issue comment "$EXISTING_ISSUE" \
+                --repo "${{ github.repository }}" \
+                --body "$ISSUE_BODY"
+            fi
+            exit 1
+          fi
+
+      - name: Summary
+        run: |
+          if [ "${{ steps.check_upstream.outputs.behind }}" = "0" ]; then
+            echo "### Upstream Sync Result" >> $GITHUB_STEP_SUMMARY
+            echo "Already fully up to date with upstream KDE/spectacle master. No build needed." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### Upstream Sync Result" >> $GITHUB_STEP_SUMMARY
+            echo "Successfully merged ${{ steps.check_upstream.outputs.behind }} new upstream commit(s). The build workflow has been triggered automatically on push." >> $GITHUB_STEP_SUMMARY
+          fi
