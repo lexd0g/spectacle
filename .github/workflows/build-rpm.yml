@@ -90,7 +90,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature/smart-eraser'
     steps:
       - name: Download Artifacts
         uses: actions/download-artifact@v4
@@ -115,7 +115,7 @@ jobs:
             #### Installation on Fedora 45:
             You can install it directly with `dnf`:
             ```bash
-            sudo dnf install https://github.com/lexd0g/spectacle-smart-eraser/releases/download/v1.0.1-fedora45/spectacle-6.8.80-Linux.rpm
+            sudo dnf install https://github.com/${{ github.repository }}/releases/download/v1.0.1-fedora45/spectacle-6.8.80-Linux.rpm
             ```
             Or download the `.tar.gz` archive to extract and run standalone.
           files: |
