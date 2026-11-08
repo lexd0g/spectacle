@@ -147,3 +147,14 @@ file(GLOB_RECURSE ALL_CLANG_FORMAT_SOURCE_FILES *.cpp *.h)
 kde_clang_format(${ALL_CLANG_FORMAT_SOURCE_FILES})
 
 kde_configure_git_pre_commit_hook(CHECKS CLANG_FORMAT)
+
+# Packaging
+set(CPACK_PACKAGE_NAME "spectacle")
+set(CPACK_PACKAGE_VENDOR "KDE")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "KDE Screenshot Capture Utility with Smart Eraser")
+set(CPACK_PACKAGE_VERSION "${SPECTACLE_VERSION}")
+set(CPACK_GENERATOR "RPM;TGZ")
+set(CPACK_RPM_PACKAGE_LICENSE "LGPLv2+")
+set(CPACK_RPM_PACKAGE_GROUP "Applications/Multimedia")
+set(CPACK_RPM_PACKAGE_AUTOREQPROV YES)
+include(CPack)
