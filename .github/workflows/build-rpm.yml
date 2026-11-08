@@ -10,7 +10,7 @@ jobs:
   build-rpm:
     runs-on: ubuntu-latest
     container:
-      image: fedora:rawhide
+      image: fedora:45
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -101,12 +101,12 @@ jobs:
       - name: Create or Update GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.0.0-fedora45
+          tag_name: v1.0.1-fedora45
           name: "Spectacle with Smart Eraser (Fedora 45)"
           body: |
             ### Spectacle with Smart Eraser
 
-            This release includes **Spectacle** with the new **Smart Eraser** editing tool, built natively for **Fedora 45 / Rawhide** (x86_64).
+            This release includes **Spectacle** with the new **Smart Eraser** editing tool, built natively on **Fedora 45** (Qt 6.11 / x86_64).
 
             #### Features:
             - **Smart Eraser**: Shares behavior with ShareX's Smart Eraser. When you click and drag, it instantly samples the pixel color under the cursor, and draws a solid rectangle with that exact fill color and 0 stroke.
@@ -115,7 +115,7 @@ jobs:
             #### Installation on Fedora 45:
             You can install it directly with `dnf`:
             ```bash
-            sudo dnf install https://github.com/lexd0g/spectacle-smart-eraser/releases/download/v1.0.0-fedora45/spectacle-6.8.80-Linux.rpm
+            sudo dnf install https://github.com/lexd0g/spectacle-smart-eraser/releases/download/v1.0.1-fedora45/spectacle-6.8.80-Linux.rpm
             ```
             Or download the `.tar.gz` archive to extract and run standalone.
           files: |
