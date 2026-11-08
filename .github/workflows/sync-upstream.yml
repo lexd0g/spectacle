@@ -1,4 +1,4 @@
-name: Weekly Upstream Sync & Build
+name: "Weekly Upstream Sync and Build"
 
 on:
   schedule:
