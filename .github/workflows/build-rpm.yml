@@ -17,7 +17,7 @@ jobs:
 
       - name: Install build dependencies
         run: |
-          dnf -y install \
+          dnf -y install --skip-unavailable \
             git \
             cmake \
             gcc-c++ \
@@ -27,17 +27,45 @@ jobs:
             dnf-plugins-core \
             extra-cmake-modules \
             qt6-qtbase-devel \
+            qt6-qtbase-private-devel \
             qt6-qtdeclarative-devel \
             qt6-qtwayland-devel \
             qt6-qtmultimedia-devel \
-            kquickimageeditor-devel
-          dnf builddep -y spectacle || true
+            qt6-qtsvg-devel \
+            kquickimageeditor-qt6-devel \
+            kpipewire-devel \
+            layer-shell-qt-devel \
+            plasma-wayland-protocols-devel \
+            kf6-kcoreaddons-devel \
+            kf6-kconfig-devel \
+            kf6-kdbusaddons-devel \
+            kf6-knotifications-devel \
+            kf6-ki18n-devel \
+            kf6-kio-devel \
+            kf6-kwindowsystem-devel \
+            kf6-kglobalaccel-devel \
+            kf6-kxmlgui-devel \
+            kf6-kguiaddons-devel \
+            kf6-kirigami-devel \
+            kf6-kstatusnotifieritem-devel \
+            kf6-prison-devel \
+            kf6-kcrash-devel \
+            kf6-kdoctools-devel \
+            wayland-devel \
+            wayland-protocols-devel \
+            tesseract-devel \
+            pipewire-devel \
+            libxcb-devel \
+            xcb-util-cursor-devel \
+            xcb-util-image-devel
+          dnf builddep -y --enablerepo='*source*' spectacle || dnf builddep -y spectacle || true
 
       - name: Configure CMake
         run: |
           cmake -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_INSTALL_PREFIX=/usr
+            -DCMAKE_INSTALL_PREFIX=/usr \
+            -DBUILD_TESTING=OFF
 
       - name: Build Spectacle
         run: |
