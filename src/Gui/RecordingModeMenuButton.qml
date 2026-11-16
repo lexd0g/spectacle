@@ -4,6 +4,7 @@
 
 import QtQuick
 import QtQuick.Controls as QQC
+import org.kde.kirigami as Kirigami
 import org.kde.spectacle.private
 
 TtToolButton {
@@ -14,6 +15,7 @@ TtToolButton {
     Accessible.role: Accessible.ButtonMenu
     onPressed: RecordingModeMenu.popup(this)
     hoverEnabled: true
-    QQC.ToolTip.visible: !enabled && hovered
+    QQC.ToolTip.visible: !enabled && (hovered || visualFocus)
     QQC.ToolTip.text: i18nc("@info:tooltip", "This feature is not supported on the current platform")
+    QQC.ToolTip.delay: Kirigami.Units.toolTipDelay
 }
